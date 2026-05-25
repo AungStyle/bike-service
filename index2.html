@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Service Triumph Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+    <style>
+        .flatpickr-calendar { margin: 0 auto; box-shadow: none !important; border: none !important; background: transparent; }
+        .has-event { position: relative; }
+        .has-event::after { content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; background-color: #4f46e5; border-radius: 9999px; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen">
+
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-[1700px] mx-auto px-4 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-motorcycle text-3xl text-indigo-400"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Bike Service Triumph Board</h1>
+                    <p class="text-xs text-slate-400">ระบบคิวเซอร์วิส เลือกดูข้อมูลรายวันและรายเดือน</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="searchInput" onkeyup="filterCards()" placeholder="ค้นหา ชื่อ, เบอร์โทร, รุ่นรถ, เลข VIN..." 
+                        class="w-full bg-slate-800 border-none rounded-full py-2 px-10 focus:ring-2 focus:ring-indigo-500 text-sm text-white">
+                    <i class="fas fa-search absolute left-4 top-3 text-slate-500 text-xs"></i>
+                </div>
+                <button onclick="clearDateFilter()" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition text-center text-white flex items-center justify-center gap-1">
+                    <i class="far fa-copy"></i> ดูงานทั้งเดือน
+                </button>
+                <button onclick="loadData()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 text-white">
+                    <i class="fas fa-sync-alt"></i> รีเฟรชข้อมูล
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="loadingStatus" class="text-center py-4 text-slate-500 animate-pulse font-medium">กำลังดึงข้อมูลงาน...</div>
+
+    <main class="max-w-[1700px] mx-auto p-4 md:p-6 flex flex-col xl:flex-row gap-6">
+        
+        <div class="w-full xl:w-80 shrink-0">
+            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-4 sticky top-24">
+                <h2 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+                    <i class="far fa-calendar-alt text-indigo-600"></i> เลือกวันที่ต้องการดูคิว
+                </h2>
+                <div id="calendar-inline" class="border border-slate-100 rounded-xl bg-slate-50/50 p-1"></div>
+                
+                <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-indigo-600 rounded-full inline-block"></span>
+                        <span>วันที่มีจุดสีน้ำเงิน = วันนั้นมีคิวจอง</span>
+                    </div>
+                    <div id="selected-date-label" class="text-indigo-600 font-bold mt-2 bg-indigo-50 p-2 rounded-lg text-center">
+                        กำลังแสดง: งานทั้งหมดของเดือนนี้
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="flex flex-col h-full">
+                <div class="bg-blue-600 p-3 rounded-t-xl text-white font-bold flex justify-between items-center shadow-sm">
+                    <span>🗓️ คิวรอนัดหมาย (TODO)</span>
+                    <span id="count-todo" class="bg-white/20 px-2 py-0.5 rounded-md text-xs">0</span>
+                </div>
+                <div id="todo-list" class="bg-white p-4 rounded-b-xl border-x border-b border-slate-200 space-y-4 min-h-[65vh] content-start shadow-sm"></div>
+            </div>
+
+            <div class="flex flex-col h-full">
+                <div class="bg-amber-500 p-3 rounded-t-xl text-white font-bold flex justify-between items-center shadow-sm">
+                    <span>🔧 กำลังดำเนินการ (DOING)</span>
+                    <span id="count-doing" class="bg-white/20 px-2 py-0.5 rounded-md text-xs">0</span>
+                </div>
+                <div id="doing-list" class="bg-white p-4 rounded-b-xl border-x border-b border-slate-200 space-y-4 min-h-[65vh] content-start shadow-sm"></div>
+            </div>
+
+            <div class="flex flex-col h-full">
+                <div class="bg-emerald-600 p-3 rounded-t-xl text-white font-bold flex justify-between items-center shadow-sm">
+                    <span>✅ เสร็จเรียบร้อย (DONE)</span>
+                    <span id="count-done" class="bg-white/20 px-2 py-0.5 rounded-md text-xs">0</span>
+                </div>
+                <div id="done-list" class="bg-white p-4 rounded-b-xl border-x border-b border-slate-200 space-y-4 min-h-[65vh] content-start shadow-sm"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // 🛑 นำลิงก์ Web App URL ล่าสุดของคุณมาวางแทนที่ในเครื่องหมายคำพูดด้านล่างนี้ครับ
+        const API_URL = "https://script.google.com/macros/s/AKfycbyo76Aq5jtqOUcrHeu71OCipAYmvmzNgSNAEy1xRnltsbMQdMnZIaq4bU-I12vkbklJBw/exec";
+
+        let allCarData = []; 
+        let selectedDateStr = null; 
+        let fpInstance = null; 
+
+        // ฟังก์ชันช่วยจัดรูปแบบวันที่ยาวๆ หรือรูปแบบข้อความให้เป็น dd/mm/yyyy เสมอ
+        function formatToShortDate(dateInput) {
+            if (!dateInput) return "";
+            
+            // ถ้าเป็นรูปแบบวันที่ยาวจาก Google (มีชื่อวัน เช่น Fri May 08...)
+            if (dateInput.includes(" ") && dateInput.includes(":")) {
+                try {
+                    const d = new Date(dateInput);
+                    if (!isNaN(d.getTime())) {
+                        return [
+                            ('0' + d.getDate()).slice(-2),
+                            ('0' + (d.getMonth() + 1)).slice(-2),
+                            d.getFullYear()
+                        ].join('/');
+                    }
+                } catch(e) {}
+            }
+            
+            // ถ้ามาเป็น YYYY-MM-DD ให้สลับเป็น DD/MM/YYYY
+            if (dateInput.includes("-")) {
+                const parts = dateInput.split("-");
+                if (parts.length === 3 && parts[0].length === 4) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            }
+            
+            return dateInput; // ส่งค่าเดิมกลับถ้าฟอร์แมตตรงอยู่แล้ว
+        }
+
+        async function loadData() {
+            const loading = document.getElementById('loadingStatus');
+            loading.classList.remove('hidden');
+            loading.innerText = "กำลังดึงข้อมูลงาน...";
+
+            try {
+                const response = await fetch(API_URL);
+                const rawData = await response.json();
+                
+                // คลีนวันที่ของการ์ดทุกใบให้เป็นมาตรฐานสั้น (dd/mm/yyyy) ก่อนเอาไปประมวลผล
+                allCarData = rawData.map(item => {
+                    if (item.date) {
+                        item.date = formatToShortDate(item.date);
+                    }
+                    return item;
+                });
+                
+                renderCalendar();
+                renderBoard();
+                
+                loading.classList.add('hidden');
+            } catch (error) {
+                loading.innerText = "❌ โหลดข้อมูลไม่สำเร็จ กรุณาเช็กการตั้งค่า API หรือชื่อหัวคอลัมน์ใน Sheets";
+                console.error(error);
+            }
+        }
+
+        function renderBoard() {
+            const lists = {
+                todo: document.getElementById('todo-list'),
+                doing: document.getElementById('doing-list'),
+                done: document.getElementById('done-list')
+            };
+
+            Object.values(lists).forEach(el => el.innerHTML = '');
+            let counts = { todo: 0, doing: 0, done: 0 };
+
+            allCarData.forEach(item => {
+                // ตัวกรองวันที่เทียบกันตรงๆ แบบ dd/mm/yyyy
+                if (selectedDateStr && item.date !== selectedDateStr) return;
+
+                const status = item.status ? item.status.toLowerCase().trim() : '';
+                if (lists[status]) {
+                    counts[status]++;
+                    const card = createCard(item);
+                    lists[status].appendChild(card);
+                }
+            });
+
+            document.getElementById('count-todo').innerText = counts.todo;
+            document.getElementById('count-doing').innerText = counts.doing;
+            document.getElementById('count-done').innerText = counts.done;
+            
+            const label = document.getElementById('selected-date-label');
+            if (selectedDateStr) {
+                label.innerText = `📅 กำลังแสดง: วันที่ ${selectedDateStr}`;
+                label.className = "text-indigo-600 font-bold mt-2 bg-indigo-50 p-2 rounded-lg text-center border border-indigo-200";
+            } else {
+                label.innerText = "📅 กำลังแสดง: งานทั้งหมดของเดือนนี้";
+                label.className = "text-slate-600 font-bold mt-2 bg-slate-100 p-2 rounded-lg text-center";
+            }
+        }
+
+        function createCard(item) {
+            const div = document.createElement('div');
+            div.className = "card-item bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md hover:border-slate-300 transition-all duration-200";
+            
+            const mechanic = item.mechanic || "ไม่ระบุช่าง";
+            const vin = item.vin || "ไม่ระบุ VIN";
+            const customerName = item.name || "ไม่ระบุชื่อลูกค้า";
+            const customerPhone = item.phone || "ไม่มีเบอร์โทร";
+            const modelName = item.model || "ไม่ระบุรุ่น";
+            const serviceDetail = item.service || "ไม่ระบุรายละเอียด";
+            
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2.5">
+                    <div class="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                        <i class="far fa-clock text-indigo-500"></i> ${item.date || ''} | ${item.time || ''}
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">VIN: ${vin}</span>
+                </div>
+                
+                <h3 class="font-bold text-slate-800 text-base mb-0.5"><i class="far fa-user mr-1 text-slate-500"></i> ${customerName}</h3>
+                <p class="text-slate-500 text-xs mb-2.5"><i class="fas fa-phone-alt mr-1 text-indigo-500"></i> ${customerPhone}</p>
+                
+                <p class="text-indigo-600 font-semibold text-xs mb-2.5"><i class="fas fa-motorcycle mr-1"></i> ${modelName}</p>
+                
+                <div class="bg-slate-50/80 p-2 rounded-lg mb-3 border border-slate-100">
+                    <p class="text-xs text-slate-600 leading-relaxed font-medium">🔧 ${serviceDetail}</p>
+                </div>
+                
+                <div class="flex items-center justify-between pt-2.5 border-t border-slate-100">
+                    <div class="flex items-center gap-1.5">
+                        <i class="fas fa-user-wrench text-xs text-slate-400"></i>
+                        <span class="text-xs font-bold text-slate-700">${mechanic}</span>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function renderCalendar() {
+            const datesWithEvents = allCarData.map(item => item.date);
+
+            if (fpInstance) {
+                fpInstance.destroy();
+            }
+
+            fpInstance = flatpickr("#calendar-inline", {
+                inline: true,
+                locale: "th",
+                dateFormat: "d/m/Y",
+                onDayCreate: function(dObj, dStr, fp, dayElem) {
+                    const dateStr = [
+                        ('0' + dayElem.dateObj.getDate()).slice(-2),
+                        ('0' + (dayElem.dateObj.getMonth() + 1)).slice(-2),
+                        dayElem.dateObj.getFullYear()
+                    ].join('/');
+                    
+                    if (datesWithEvents.includes(dateStr)) {
+                        dayElem.classList.add("has-event");
+                    }
+                },
+                onChange: function(selectedDates, dateStr, instance) {
+                    if (selectedDates.length > 0) {
+                        selectedDateStr = dateStr;
+                        renderBoard();
+                    }
+                }
+            });
+        }
+
+        function clearDateFilter() {
+            selectedDateStr = null;
+            if (fpInstance) fpInstance.clear();
+            renderBoard();
+        }
+
+        function filterCards() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.getElementsByClassName('card-item');
+            for (let card of cards) {
+                const text = card.innerText.toLowerCase();
+                card.style.display = text.includes(input) ? "block" : "none";
+            }
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
